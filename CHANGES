@@ -1,0 +1,553 @@
+Changes to standard REX: rtpRex76_25Apr2003.tar.zip
+downloaded March 30, 2004
+
+NOTE: be careful about system interrupts (IRQs), 
+esp the one associated with the A/D board
+(in our case, NI 6023E). Ideally, it should have its
+own interrupt, and that should be 5 ... but I
+find that few BIOS's give you the flexibility
+to assign it. So it's a matter of turning off
+whatever hardware is not needed (e.g., USB
+ports, audio) and hope that IRQs are assigned
+appropriately.
+
+FILES (search below):
+
+spot/Makefile
+act/sf_init.c
+hdr/buf.h
+hdr/cnf.h
+hdr/ecode.h
+hdr/rexHdr.h
+int/cnf.c
+int/clock.c
+procSwitch/src/fileTools.c
+rexLib/ldevent.c
+spot/lex.yy.c
+spot/y.tab.c
+sset/Makefile
+toolBar/src/gcc_ntox86/Makefile
+toolBar/src/manageWin.c
+toolBar/src/readRoot.c
+toolBar/src/rex_alert.c
+toolBar/src/rex_main.c
+toolBar/src/userMenuControls.c
+Builder
+
+also used AppBuilder (Launch->Development->Builder)
+to change procSwitch and toolBar guis
+
+************ IMPORTANT **************
+*** Long 3-23-07
+*** after changing the rexHdr.h and spot/y.tab.c files, 
+*** make sure to re-compile spot program. Need to do it manually in spot directory. 
+*** Also, make appropriate changes in hdr/cnf.h according to specific setup
+
+
+*******   
+***
+*** spot/Makefile
+***
+******* 
+old code:
+
+$(OUTPUT):  $(OBJ)
+  $(LD) $(OBJ) -lfl -o spot
+
+new code:
+
+$(OUTPUT):  $(OBJ)
+  $(LD) $(OBJ) -o spot
+
+
+*******
+***
+*** act/sf_init.c
+***
+*******
+/* jig 8/5/04
+ *
+ * OLD:
+ *    return(x | INIT_MASK);
+ * NEW:
+ *    use 8191 as Reset code -- DO NOT SEND PARADIGM NUMBER
+ *    see hdr/ecode.h
+*/
+   return(RESET_CODE);
+
+*******
+***
+*** hdr/buf.h
+***
+***
+*** add "rtappend" as a field to INT_BLOCK, to be used
+***  for Jochy's "fileTools" fix
+*******
+ char i_rtmenus[P_ISLEN];   /* names of menus to dump when writing
+                subset of a root file */
+ char i_rtbuf[512];   /* root file read input buffer */
+ char i_rtappend;
+
+*******
+***
+*** hdr/cnf.h
+***
+***
+*** Set system-specific configuration parameters;
+***	e.g., define all PCI devices
+***
+*** IMPORTANT -- also change the 
+***		pl_send_code macro for sending 15-bit strobed
+***		messages to plexon...
+*******
+
+** OLD:
+#define pl_send_code_(code)  { \
+      out8(PL_DIOBASE+2, 0); /* clear strobe */ \
+      out8(PL_DIOBASE, code & 0xff); \
+      out8(PL_DIOBASE+1, (code >> 8)); \
+      out8(PL_DIOBASE+2, PL_STROBE); /* set strobe */ \
+   }
+
+** NEW:
+#define pl_send_code_(code)  { \
+      out8(PL_DIOBASE, code & 0xff); \
+      out8(PL_DIOBASE+1, (code >> 8)); \
+      out8(PL_DIOBASE+2, PL_STROBE); /* set strobe */ \
+      out8(PL_DIOBASE+2, 0); /* clear strobe ... jig moved from top of macro */ \
+   }
+#endif
+
+*******
+***
+*** hdr/ecode.h
+***
+*******
+/*
+ *-----------------------------------------------------------------------*
+ *    Ecode mask bits.
+ *-----------------------------------------------------------------------*
+ */
+
+/* 8-5-04 jig
+ * We now completely ignore these, to make sure that
+ * all ecodes are 0 (really 1501 -- 1st 1500 are reserved) -> 8191
+ * in sf_init.c, instead of returning INIT_MASK bit-or'd with
+ * the paradigm number, we simply drop RESET_CODE, the highest
+ * number we have
+*/
+#define RESET_CODE 8191
+
+*******
+***
+*** hdr/rexhdr.h
+***
+***	add compiler directive, plus a few more files:
+*******
+#ifndef REXHDR_H_
+#define REXHDR_H_
+
+#include "../hdr/sys.h"
+#include "../hdr/cnf.h"
+#include "../hdr/proc.h"
+#include "../hdr/cdsp.h"
+#include "../hdr/idsp.h"
+#include "../hdr/buf.h"
+#include "../hdr/menu.h"
+#include "../hdr/state.h"
+#include "../hdr/ecode.h"
+#include "../hdr/device.h"
+#include "../hdr/int.h"
+
+#endif
+
+*******
+***
+*** int/cnf.c
+***
+*** Perhaps change port definitions for PCI_DIO;
+***	e.g., port 1 (bytes 4-8) are:
+***		  D_OUT, D_OUT|D_REV, D_IN, D_CTRL,
+***
+*******
+
+
+*******
+***
+*** int/clock.c
+***
+*******
+if((st_count -= ST_RATE) <= 0) {
+      /*
+       * Do not allow to be re-entered on reinterrupts.
+       */
+      if(sp_lock) {
+         st_count= 1;
+         goto l_disp;
+      } else st_count= st_rate;
+
+      sp_lock= 1;
+
+/* jig moved 3/30/04 as per Julian Brown's instructions */
+#ifdef PCMESSAGE
+   /*
+    * PC to PC Messaging.
+    */
+   pcm_msg_process();
+#endif
+
+
+*******
+***
+*** procSwitch/src/fileTools.c
+***
+*** in function closeDataFile:
+*******
+
+PtSetArg(&args[0], Pt_ARG_FLAGS, Pt_FALSE, Pt_SET);
+PtSetArg(&args[1], Pt_ARG_FLAGS, Pt_FALSE, Pt_SELECTABLE);
+PtSetResources(ABW_dataKeepBothToggle, 2, args);
+PtSetResources(ABW_dataKeepEventsToggle, 2, args);
+
+/* added by jig as per Julian Brown, 3/30/04 */
+PtSetArg(&args[0], Pt_ARG_FILL_COLOR, Pg_RED, 0);
+PtSetResources(ABW_dataKeepBothToggle, 1, &args[0]);
+PtSetArg(&args[0], Pt_ARG_FILL_COLOR, Pg_RED, 0);
+PtSetResources(ABW_dataKeepEventsToggle, 1, &args[0]);
+
+
+*******
+***
+*** rexLib/ldevent.c
+***
+*** changed the part in "ifdef PLEX_ECODES", as follows...
+****
+*******
+#ifdef PLEX_ECODES
+   /*
+    * Send ecode to Plexon box. Don't send unit ecodes.
+    * Don't send negative ecodes, because only lower 15 bits of
+    * code can be sent to Plexon box.  Critical section- this must be done
+    * high priority to avoid conflict with other places events are sent
+    * in clock and in lower level with int_ldevent_().
+    */
+   /* 7/27/04 jig changed logic ... now we first check
+   ** if there is something in the high-priority buffer --
+   ** if so, send that and buffer the incoming message
+   */
+   if( (evp->e_code >= 0)) {
+
+      /* if box is ready & nothing in queue, send message */
+      if(pl_box_ready_ && i_b->pl_hidx == i_b->pl_hilx) {
+         pl_send_code_(evp->e_code);
+
+      /* otherwise... */
+      } else {
+
+         /* if box is ready and something in the queue, send it */
+         if(pl_box_ready_ && i_b->pl_hidx != i_b->pl_hilx) {
+            pl_send_code_(i_b->pl_hipri[i_b->pl_hidx]);
+            if(++i_b->pl_hidx == PL_MAXCODES)
+               i_b->pl_hidx=0;
+         }
+
+         /* buffer current messasge */
+         i_b->pl_hipri[i_b->pl_hilx]= evp->e_code;
+         if(++i_b->pl_hilx >= PL_MAXCODES)
+            i_b->pl_hilx= 0;
+         if(i_b->pl_hilx == i_b->pl_hidx)
+            rxerr("Plexon hi pri buffer overflow"); /* overflow error */
+      }
+   }
+#endif
+
+*******
+***
+*** spot/lex.yy.c
+***
+*******
+# diff spot/lex.yy.c spot/lex.yy.c.orig
+11,17d10
+< /* changed 8/7/04 by jig re: jochy
+<  * allows for an initialization routine ("autoinit")
+<  * that is executed when you run a process
+<  * First looks for a function called "autoinit"
+<  * in the paradigm; if it's not found, it adds an
+<  * empty default function
+< */
+19d11
+<
+2277,2281d2268
+<       /* jig added */
+<       char ref_str[]="autoinit";
+<       int cur_str_len=0;
+<       int autoinit_found=0;
+<
+2287,2296d2273
+<
+<               if(!autoinit_found) {
+<                       if(tbuf==ref_str[cur_str_len]) { /* match? */
+<                               cur_str_len++;
+<                               if(cur_str_len==8)
+<                                       autoinit_found=1;
+<                       } else {
+<                               cur_str_len = 0;
+<                       }
+<               }
+2298,2304d2274
+<
+<       /* create dummy funciton if none found */
+<       if(!autoinit_found) {
+<               fprintf(stdout, "\n");
+<               fprintf(stdout, "void autoinit() {};\n");
+<               fprintf(stdout, "\n");
+<       }
+
+*******
+***
+*** spot/y.tab.c
+***
+*******
+/*
+ * Put out the required #includes.
+ */
+void
+includes(void)
+{
+   fprintf(stdout,"#include <stdio.h>\n");
+   fprintf(stdout,"#include <sys/types.h>\n");
+   fprintf(stdout,"#include \"../hdr/rexHdr.h\"\n");
+/*
+   fprintf(stdout,"#include \"../hdr/sys.h\"\n");
+   fprintf(stdout,"#include \"../hdr/cnf.h\"\n");
+   fprintf(stdout,"#include \"../hdr/proc.h\"\n");
+   fprintf(stdout,"#include \"../hdr/cdsp.h\"\n");
+   fprintf(stdout,"#include \"../hdr/idsp.h\"\n");
+   fprintf(stdout,"#include \"../hdr/buf.h\"\n");
+   fprintf(stdout,"#include \"../hdr/menu.h\"\n");
+   fprintf(stdout,"#include \"../hdr/state.h\"\n");
+   fprintf(stdout,"#include \"../hdr/ecode.h\"\n");
+   fprintf(stdout,"#include \"../hdr/device.h\"\n");
+   fprintf(stdout,"#include \"../hdr/int.h\"\n");
+*/
+   fprintf(stdout,"\n\n");
+}
+
+
+*******
+*******
+***
+*** sset/Makefile
+***
+*******
+# compile labTools lib, as follows:
+
+CFLAGS  = -V$(PLATFORM) -w -c $(OPTIM) $(DEBUG) -I../hdr -I../labTools
+...
+
+$(OUTPUT): $(OBJ)
+        (cd ../act; make)
+        (cd ../int; make)
+        (cd ../labTools; make)
+        (cd ../toolBar/src/gcc_ntox86; make shr; cp toolBar ../../../run/$(sf))
+        usemsg ../run/$(sf) ../toolBar/src/Usemsg
+...
+
+        @echo "\nMAKING INT LIB\n"
+        (cd ../int; rm -f *.o *.map *.err; make)
+        @echo "\nMAKING LABTOOLS LIB\n"
+        (cd ../labTools; rm -f *.o *.map *.err; make)
+
+
+*******
+***
+*** toolBar/src/gcc_ntox86/Makefile
+***
+*******
+added -l lt to REXLIBS
+also changed in shr and in app, to use available phabbind on machine
+	old code:
+		/usr/photon/appbuilder/phabbind toolBar $(ABMOD)
+	changed to:
+		phabbind toolBar $(ABMOD)
+
+
+*******
+***
+*** toolBar/src/manageWin.c
+***
+*** for ASL communications...
+***
+*******
+#ifdef PCS_SOCKET
+         pcsClose();    /* close tcp/ip socket to vex */
+#endif
+
+/* jig added re: Jochy */
+#ifdef SIG_SOCKET
+   sigSocket_close(); /* close socket */
+#endif
+
+*******
+***
+*** toolBar/src/readRoot.c
+***
+***
+*** added to the top of readRoot():
+*******
+int readRoot(void)
+{
+   FILE *rootIn;
+   MENU *pMenu;
+   STATE *pState;
+   struct stat statBuf;
+   int fileStat;
+   int menuFlag;
+   char *rootFile;
+   char *linePtr;
+
+   /* jig added 8/7/04 ... don't read root when the clock is on */
+   if(i_b->i_flags & I_GO) {
+      printf("Can't read root while the clock is on\n");
+      return(0);
+   }
+
+
+*******
+***
+*** toolBar/src/rex_alert.c
+***
+***
+*******
+# diff rex_alert.c rex_alert.c.orig
+13,14d12
+< /* updated by jig 4/27/04 re Jochy */
+<
+99,102d93
+< /* jig added */
+< #ifdef SIG_SOCKET
+<       sigSocket_close();
+< #endif
+120,123d110
+< /* jig added */
+< #ifdef SIG_SOCKET
+<       sigSocket_close();
+< #endif
+
+
+*******
+***
+*** toolBar/src/rex_main.c
+***
+*** for ASL communications...
+***
+*******
+
+*** AUTOINIT DECLARATION ADDED NEAR TOP:
+
+/* stack for the clock thread */
+char clockThrdStack[CLK_THRD_STK_SIZ];
+pthread_t clockThreadId;
+void clockThread(void *arg);
+
+/* jig added re Jochen */
+void autoinit(void);
+
+
+*** TWO PARTS ADDED NEAR BOTTOM:
+***	- autoinit
+***	- sigSocket_init
+
+#ifdef PCMESSAGE
+   pcm_init(-1);      /* initialize PC to PC messaging */
+#endif
+
+
+   /* paradigm-specific initialization
+   ** added by jig 8/5/04
+   */
+   autoinit();
+
+#ifdef PCS_SOCKET
+   pcsVexSocket();
+
+/* added by jig */
+#ifdef SIG_SOCKET
+#ifdef ASL
+   sigSocket_init(ASL_IP, ASL_PORT,1);
+#endif
+#endif
+
+*******
+***
+*** toolBar/src/userMenusControls.c
+***
+*** New version of buildUserMenus, prevents user
+***	from opening multiple copies of user windows
+***
+*******
+
+int buildUserMenus(PtWidget_t *widget, void *client_data, PtCallbackInfo_t *cbinfo)
+{
+   register int i;
+
+   /* eliminate 'unreferenced' warnings */
+   widget = widget, client_data = client_data, cbinfo = cbinfo;
+
+   /* attach the client_data to the callback struct */
+   cbinfo->cbdata = client_data;
+
+   /* jig added re: Jochy 8/7/05 ...
+   ** Having several instances of the same window open could crash REX
+   */
+   for(i=0;i<menuIndex;i++) { /* check if it's already open */
+      if(rexUserMenus[i].menuPtr == (MENU*)client_data) {
+
+         /* switch console */
+         PtWindowConsoleSwitch(PtWidgetRid(rexUserMenus[i].menuWindow));
+
+         /* set window focus */
+         PtWindowFocus(rexUserMenus[i].menuWindow);
+
+         /* outta */
+         return(Pt_CONTINUE);
+      }
+   }
+
+   /* Create a user menu module */
+   /* the initialization function initUserMenuWindow is called
+    * automatically whenever a userMenuWindow is created
+    */
+   ApCreateModule(ABM_userMenuWindow, widget, cbinfo);
+
+   return( Pt_CONTINUE );
+}
+
+
+*******
+***
+*** Builder
+*** 
+*** Use Application builder (find it in the Launch menu,
+***	under "QNX Momentics 6.30" in the latest version,
+*** 	but "development" (I think) in earlier versions)
+***
+*** You need to force a recompile of whatever
+***	directory you change
+***
+*******
+
+procSwitch:
+- PtLabel ('Keep data'): changed Font to Arial10ba
+- PtToggleButtons ('Events+Analog' and 'Events Only'):
+	changed Font to Arial09ba
+	changed Text Color to blue
+	changed Fill Color to transparent
+
+toolBar:
+- buttons:
+	changed Font to Arial08ba
+	changed Contrast to 25
+	changed Border Contrast to 35	
+	changed Bevel Width to 5
+ (need to resize a bit)	
