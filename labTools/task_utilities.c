@@ -1538,7 +1538,7 @@ void td_calc_numTrialCoh3(_PRtask task, int *nTrial, int num_cohs, int nbc)
 _PRtrial td_get_random_altRows6(_PRtask task, int reset_flag, int num_by_coh)
 {
     int last_score = task->pmf ? task->pmf->last_score : 0;
-    long last_rt   = task->pmf ? task->pmf->rt_current : 1000;
+    long last_rt   = 1000; /* task->pmf ? task->pmf->rt_current : 1000; */
     int flagRepeat = pl_list_get_v(task->task_menus->lists[1], "flagRepeat");
     int flagRepThre = pl_list_get_v(task->task_menus->lists[1], "flagRepThre"); // threshold RT in ms
     static int initflag = 0;

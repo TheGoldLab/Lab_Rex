@@ -119,7 +119,7 @@ void ft_make_trials(_PRtask task)
 */
 _PRtrial ft_get_trial(_PRtask task, int reset_flag)
 {	
-   int trial_blocks = TIMV(task, "Trial_blocks”);
+   int trial_blocks = TIMV(task, "Trial_blocks");
 
    switch(TIMV(task, "Trial_order")) {
 
