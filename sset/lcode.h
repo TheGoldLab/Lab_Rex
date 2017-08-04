@@ -35,9 +35,9 @@
  * spikes.
  */
 #define HEADCD			8000	/* marks beginning of a series
-							 		* and should be followed by a series
-							 		* of index 8000+n ECODE pairs.
-							 		*/
+					* and should be followed by a series
+					* of index 8000+n ECODE pairs.
+					*/
 #define I_FIXXCD		8001	/* fix x */
 #define I_FIXYCD		8002	/* fix y */
 #define I_STXCD		8003	/* stim center x */
@@ -101,25 +101,25 @@
 #define I_PRTP6      8054     /* Prob Rew task, prob of 7th best target */
 #define I_PRTP7      8055     /* Prob Rew task, prob of 8th best target */
 #define I_PRTP8      8056     /* Prob Rew task, prob of 9th best target */
-#define I_PRTP9       8057    /* Prob Rew task, prob of 10th best target */
-#define I_PRTPA       8058    /* Prob Rew task, prob of 11th best target */
+#define I_PRTP9      8057     /* Prob Rew task, prob of 10th best target */
+#define I_PRTPA      8058     /* Prob Rew task, prob of 11th best target */
 
 /* jig and yl changed 3/24/14
 **
 ** OLD:
-** #define I_TESTIDCD   8037     * test type in dotsj2 task, added by TD, 2013-06-20 *
-** #define I_RATE	      8038		* Index for the rate of motion change, adaption to motion change task, added by TD, 2014-01-29 *
-** #define I_ANGLEO	   8039		* TD, 2014-02-18 *
-** #define I_ANGLED1	   8040
-** #define I_ANGLED2	   8041	
+** #define I_TESTIDCD 8037  * test type in dotsj2 task, added by TD, 2013-06-20 *
+** #define I_RATE		8038   * Index for the rate of motion change, adaption to motion change task, added by TD, 2014-01-29 *
+** #define I_ANGLEO	8039   * TD, 2014-02-18 *
+** #define I_ANGLED1	8040
+** #define I_ANGLED2	8041	
 **
 ** NEW:
 */
-#define I_TESTIDCD   8059     /* test type in dotsj2 task, added by TD, 2013-06-20 */
-#define I_RATE	      8060		/* Index for the rate of motion change, adaption to motion change task, added by TD, 2014-01-29 */
-#define I_ANGLEO	   8061		/* TD, 2014-02-18 */
-#define I_ANGLED1	   8062
-#define I_ANGLED2	   8063
+#define I_TESTIDCD  	8059  /* test type in dotsj2 task, added by TD, 2013-06-20 */
+#define I_RATE	     	8060  /* Index for the rate of motion change, adaption to motion change task, added by TD, 2014-01-29 */
+#define I_ANGLEO		8061  /* TD, 2014-02-18 */
+#define I_ANGLED1		8062
+#define I_ANGLED2		8063
 
 /* added by jig 11/10/15 */
 #define I_RATE1		8064
@@ -130,15 +130,15 @@
 /* Added by jig 11/11/16 from rig1:
 **
 ** OLD VALUES:
-** #define I_DOTDENSITYCD	8040	/* ADDED BY LD 2015-07-08 */
-** #define I_ESTIMCD			8037	/* estim type 0-5, added Long 09-07-2010	*/
-** #define I_ESTIMCORCD 	8038  /* stim_corr_choice in estimPostSacTD.d, added TD 06-21-2012 */
-** #define I_ESTIMDIRCD 	8039  /* stim_motion_dir  in estimPostSacTD.d, added TD 06-21-2012 */
+** #define I_DOTDENSITYCD	8040	* ADDED BY LD 2015-07-08 *
+** #define I_ESTIMCD			8037	* estim type 0-5, added Long 09-07-2010	*
+** #define I_ESTIMCORCD 	8038 	* stim_corr_choice in estimPostSacTD.d, added TD 06-21-2012 *
+** #define I_ESTIMDIRCD 	8039  * stim_motion_dir  in estimPostSacTD.d, added TD 06-21-2012 *
 */
-#define I_DOTDENSITYCD	8068		/* ADDED BY LD 2015-07-08 */
-#define I_ESTIMCD			8069		/* estim type 0-5, added Long 09-07-2010	*/
-#define I_ESTIMCORCD 	8070     /* stim_corr_choice in estimPostSacTD.d, added TD 06-21-2012 */
-#define I_ESTIMDIRCD 	8071     /* stim_motion_dir  in estimPostSacTD.d, added TD 06-21-2012 */
+#define I_DOTDENSITYCD	8068	/* ADDED BY LD 2015-07-08 */
+#define I_ESTIMCD			8069	/* estim type 0-5, added Long 09-07-2010	*/
+#define I_ESTIMCORCD 	8070  /* stim_corr_choice in estimPostSacTD.d, added TD 06-21-2012 */
+#define I_ESTIMDIRCD 	8071  /* stim_motion_dir  in estimPostSacTD.d, added TD 06-21-2012 */
 
 /* special event codes for dot paradigms (lifted from 660.d) */
 #define GORANDCD	4900		/* turn on dots */
@@ -153,6 +153,7 @@
 #define LOOPCD		4909
 #define PREFCD		4910
 #define NULLCD		4911
+
 /* not sure what this was at stanford... but at UW it is... */
 #define ASKOFFCD	4912
 #define FIX1CD 	4913  /* added for Matt, para 512 */

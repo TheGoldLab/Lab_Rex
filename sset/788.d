@@ -5,6 +5,8 @@
 */
 
 /* HISTORY:
+** LD 2017/01/23 changed paradigm to have fixed switch times, high coh for epoch 1 and randomized dir for epoch 2
+**			to do that, also added a fourth task to have two sets of coherences for epoch 2.
 ** LD 2016/04/18 removed feedback for fixation break. 
 ** LD 2016/04/14 added feedback for fixation break and error trials.
 **	LD 2016/05/11 added options to reward dotsrev and non-dotsrevi tasks differently
@@ -83,7 +85,7 @@ static int        gl_dots_epoch=10; /* 10=epoch 1, 20=epoch 2 */
 static int        gl_dots_set=1;    /* set 1 or 2 of coh/dir values */
 static int			gl_xtime=0;			/* whether to add extra timeout */
 static int			gl_repeat=0;		/* if repeat trial */
-		
+static int 			last_dots_set = 1; /* last dots dir */		
 
 int errorT = 1;			/* LD 2016-04-14, added to keep track of the wrong target for feedback */
 
@@ -123,6 +125,7 @@ USER_FUNC   ufuncs[15];
 **  TASK3:		dots-reversal task #1
 **  TASK4:		dots-reversal task #2
 **  TASK5:		dots-reversal task #3
+**  TASK6:     dots-reversal task #4
 */
 void autoinit(void)
 {
@@ -133,7 +136,7 @@ void autoinit(void)
 		"asl",         1,  /* calibration */
 		"ft",          1,  /* VGS */
 		"dotsj2",      1,  /* Dots during passive fixation for MT mapping */
-		"dots_rev",		3,  /* dots-reversal task */
+		"dots_rev",		4,  /* dots-reversal task */
 		NULL);
 }
 
@@ -225,7 +228,7 @@ int check_xtime(void)
 }
 
 /* ROUTINE: do_calibration
-**
+
 **	Returns 1 if doing calibration (ASL task)
 */
 int do_calibration(void)
@@ -259,7 +262,9 @@ int check_fixflag(void)
 */
 int setup_dots(long set_probability)
 {
-	static int last_dots_set = 1;
+/*	static int last_dots_set = 1; */ 
+/* commented out LD 1-25-2017 */
+/* should be a global variable. */
 
 	/* reset global keeping track of current epoch */
 	gl_dots_epoch = 10;
@@ -391,12 +396,16 @@ int switch_dots(long ecode)
 {
 	int     	gdi[]	= {0};
 	valtype 	dir, coh;
+	int 		epoch2_dir = 0;
 
 	// update gl_dots_set
-	gl_dots_set = gl_dots_set==1 ? 2 : 1;
+//	gl_dots_set = gl_dots_set==1 ? 2 : 1; 
+/* commented out by LD 1-23-2017, do not force direction switch between epochs */
 
 	// Get current values of direction, coherence
 	if(gl_dots_epoch<20) {
+   // update gl_dots_set
+   gl_dots_set = gl_dots_set==1 ? 2 : 1;
 		if(gl_dots_set==1) {
 			dir = TIMW("Epoch1_Dir1");
 			coh = TIMW("Epoch1_Coh1");
@@ -405,6 +414,8 @@ int switch_dots(long ecode)
 			coh = TIMW("Epoch1_Coh2");
 		}
 	} else {
+		/* added by LD 1-23-2017 randomize epoch2_dir based on trial id  */
+		gl_dots_set = gl_rec->trialP->id%2==0 ? 1 : 2;
 		if(gl_dots_set==1) {
 			dir = TIMW("Epoch2_Dir1");
 			coh = TIMW("Epoch2_Coh1");
@@ -413,6 +424,8 @@ int switch_dots(long ecode)
 			coh = TIMW("Epoch2_Coh2");
 		}
 	}
+
+printf("current coh = %d, dir = %d \n", coh, dir);
 
 	// Set direction, coherence
 	dx_set_by_nameIV(DXF_D1, DX_DOTS, 1, gdi,
@@ -580,6 +593,7 @@ begin	first:
 		to t3start on 3 % pr_get_task_index	/* dots reversal # 1    */
 		to t4start on 4 % pr_get_task_index	/* dots reversal # 2    */	
 		to t5start on 5 % pr_get_task_index	/* dots reversal # 3    */
+      to t6start on 6 % pr_get_task_index /* dots reversal # 4    */
 		to finish
 
 	/** 
@@ -814,6 +828,55 @@ begin	first:
 		do dx_hide_fp(FPOFFCD)
 		to grace on DX_MSG % dx_check
 
+    /*
+    **
+    **  TASK 6: dots reversal
+    **
+    */
+   t6start:
+      do setup_dots(500)
+      to t6wait1
+   /* wait before turning on targets */
+   t6wait1:
+      do timer_set1(1000, 100, 300, 200, 0, 0)
+      to t6showt on MET % timer_check1
+      to fixbreak on +WD0_XY & eyeflag
+   /* show targets */
+   t6showt:
+      do dx_toggle2(TARGONCD,1,1,1000,2,1000)
+      to t6wait2 on DX_MSG % dx_check
+   /* wait again before turning on dots */
+   t6wait2:
+      do timer_set1(1000, 100, 300, 200, 0, 0)
+      to t6showd on MET % timer_check1
+      to fixbreak on +WD0_XY & eyeflag
+   /* show the dots */
+   t6showd:
+      do dx_toggle1(GORANDCD, 1, 3, 1000, NULLI, NULLI)
+      to t6checkd on DX_MSG % dx_check
+   /* check timers for switching/ending behavior */
+   t6checkd:
+      do set_dots_timers()
+      to t6stopd   on MET % check_hide_dots
+      to t6switchd on MET % check_switch_dots
+      to fixbreak on +WD0_XY & eyeflag
+   t6switchd:
+      do switch_dots(GORANDCD)
+      to t6checkd on DX_MSG % dx_check
+   /* stop the dots */
+   t6stopd:
+      do end_dots(ENDCD,50,50)
+      to t6wait3 on DX_MSG % dx_check
+   /* final wait before fixation offset */
+   t6wait3:
+      do timer_set1(0,0,0,0,500,0)
+      to t6hidefp on MET % timer_check1
+      to fixbreak on +WD0_XY & eyeflag
+   t6hidefp:
+      do dx_hide_fp(FPOFFCD)
+      to grace on DX_MSG % dx_check
+
+
     /* 
     **
     ** Check for saccade, then for hold times
@@ -915,7 +978,8 @@ begin	first:
       to reward on 3 % pr_get_task_index /* dots reversal # 1    */
       to reward on 4 % pr_get_task_index /* dots reversal # 2    */
       to reward on 5 % pr_get_task_index /* dots reversal # 3    */
-		to rewardASL 
+      to reward on 6 % pr_get_task_index /* dots reversal # 4    */		
+      to rewardASL 
     reward:
 		do pr_set_reward(2, 200, 50, -1, 0, 0) 
 		to finish on 0 % pr_beep_reward
