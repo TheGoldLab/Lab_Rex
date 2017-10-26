@@ -26,6 +26,7 @@ OUTPUT = liblt.a
 OBJ = dioLT.o dotsX.o ecodeLT.o paradigm_rec.o \
 	property_list.o random.o safe_alloc.o task.o \
 	task_utilities.o timerLT.o toys.o udp.o \
+   Tasks/task_adaptiveODR.o \
 	Tasks/task_asl.o		\
 	Tasks/task_fix.o		\
 	Tasks/task_ft.o			\
@@ -75,6 +76,8 @@ udp.o: udp.c udp.h
 #	gcc udp.o ../../../lib/libsocket.a ../../../lib/libc.a -o udp
 
 # TASK-SPECIFIC RULES GO BELOW
+Tasks/task_adaptiveODR.o: paradigm_rec.h task.h task_utilities.h
+
 Tasks/task_asl.o: paradigm_rec.h task.h task_utilities.h
 
 Tasks/task_fix.o: paradigm_rec.h task.h task_utilities.h

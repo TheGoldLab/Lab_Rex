@@ -140,6 +140,14 @@
 #define I_ESTIMCORCD 	8070  /* stim_corr_choice in estimPostSacTD.d, added TD 06-21-2012 */
 #define I_ESTIMDIRCD 	8071  /* stim_motion_dir  in estimPostSacTD.d, added TD 06-21-2012 */
 
+/* added by jig 10/25/17 for 792 */
+#define I_T1IDH         8072
+#define I_T1EDH         8073
+#define I_T1KAPPA       8074
+#define I_T2IDH         8075
+#define I_T2EDH         8076
+#define I_T2KAPPA       8077
+
 /* special event codes for dot paradigms (lifted from 660.d) */
 #define GORANDCD	4900		/* turn on dots */
 #define GOCOHCD 	4901		/* turn on coherence */
@@ -155,28 +163,28 @@
 #define NULLCD		4911
 
 /* not sure what this was at stanford... but at UW it is... */
-#define ASKOFFCD	4912
-#define FIX1CD 	4913  /* added for Matt, para 512 */
-#define BIGREWCD 	4914 /* added for Matt, para 512 */ 
-#define CHGFPCD 	4915  /* added for Jamie, para 602 */
-#define QONCD		4916  /* added for Mark, para 422 */
-#define QOFFCD		4917  /*  same */
-#define GOTRGONCD  4918  /* same */
-#define TRGACQUIRECD  4919  /*same */
-#define QACQUIRECD  4920
-#define GOTRGOFFCD  4921
-#define DTMVBGNCD	  4922	/* added for Josh, para 702exp */
-#define DTMVENDCD	  4923	/* added for Josh, para 702exp */
+#define ASKOFFCD     4912
+#define FIX1CD       4913  /* added for Matt, para 512 */
+#define BIGREWCD     4914 /* added for Matt, para 512 */ 
+#define CHGFPCD      4915  /* added for Jamie, para 602 */
+#define QONCD        4916  /* added for Mark, para 422 */
+#define QOFFCD       4917  /*  same */
+#define GOTRGONCD    4918  /* same */
+#define TRGACQUIRECD 4919  /*same */
+#define QACQUIRECD   4920
+#define GOTRGOFFCD   4921
+#define DTMVBGNCD    4922	/* added for Josh, para 702exp */
+#define DTMVENDCD    4923	/* added for Josh, para 702exp */
 #define ACCEPTCAL     4924  /* added by JD, para 730 */
-#define LASTCD    4925   		/* Added by MM for 65* series of paras */
-#define BRFIXCD	4926
-#define CNTRMNDCD 4927
-#define PSEUDTRGCD 4928	/* added by Sharath for spm761 */
-#define TRGC1CD	4930
-#define TRGC2CD	4931
-#define TRGC3CD	4932
-#define SACACC 4933  /*  mn added -- saccade accepted, awaiting feedback */
-#define BLOCKCD   4944  /* jig & mn added -- NEW BLOCK */
+#define LASTCD       4925   		/* Added by MM for 65* series of paras */
+#define BRFIXCD      4926
+#define CNTRMNDCD    4927
+#define PSEUDTRGCD   4928	/* added by Sharath for spm761 */
+#define TRGC1CD      4930
+#define TRGC2CD      4931
+#define TRGC3CD      4932
+#define SACACC       4933  /*  mn added -- saccade accepted, awaiting feedback */
+#define BLOCKCD      4944  /* jig & mn added -- NEW BLOCK */
 
 /*
  *	Event codes specific per laboratory.

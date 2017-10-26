@@ -125,7 +125,7 @@ struct _PLgroup_struct {
 
 	/* conditionally set property (if current value == NULLI)  */
 #define PL_NOVAL NULLI
- #define PL_CSET(v1, v2) if((v1) == NULLI) (v1) = (v2)
+#define PL_CSET(v1, v2) if((v1) == NULLI) (v1) = (v2)
 //#define PL_CSET(v1, v2)  (v1) = (v2)
 
 /* PUBLIC ROUTINE PROTOTYPES */

@@ -282,6 +282,28 @@ double *toy_vonMisesA(double *x, int num_x, double mu, double k)
    return(prob);
 }
 
+/* PUBLIC ROUTINE: toy_vonMisesRand
+**
+** Generate a random number from a von Mises distribution
+** 1979 Best-Fisher Algorithm
+**
+*/
+double toy_randCircularNormal(double mu, double sigma)
+{
+   double X,Y,sample;
+   
+   do {
+      X = RANDV;
+      Y = RANDV;
+   } while(pow(X,2.0)+pow(Y,2.0)>=1);
+
+   if(RANDV<0.5)
+      X = -X;
+
+   sample = X*pow((-2*log(pow(X,2.0)+pow(Y,2.0))/(pow(X,2.0)+pow(Y,2.0))),0.5);
+   sample = fmod(sample * sigma+ mu, 360.0);
+}
+
 double toy_double(void)
 {
 	return(101.3345);
