@@ -1,7 +1,7 @@
 /*
 ** task_adaptiveODR.c
 **
-** task "fixation-target-target".c ... 
+** task "fixation-target-target".c ... "
 **	 	standard fixation + 2-target tasks
 **			(e.g., overlap and memory saccades)
 */
@@ -14,6 +14,7 @@
 #define NUM_OBJECTS  3
 #define TI           "setup"
 #define TIMV(ta,n) 	pl_list_get_v((ta)->task_menus->lists[0],(n))
+#define WC_INIT		-1
 
 /* PRIVATE DATA STRUCTURES */
 
@@ -31,7 +32,7 @@ void        adODR_set_trial   (_PRtrial);
 struct _TAtask_struct gl_adODR_task[] = {
 
 	/* name */
-	"adODR",
+	"adaptODR",
 
 	/* 
 	** Menus 
@@ -41,27 +42,29 @@ struct _TAtask_struct gl_adODR_task[] = {
 		** Task info
 		*/
 		{ TI, 				1 },
-         { "T1_ID_Hazard"     0, 0.1 }, 
-         { "T1_ED_Hazard"     0, 0.1 }, 
-         { "T1_kappa"         0, 0.1 }, 
-         { "T2_ID_Hazard"     0, 0.1 }, 
-         { "T2_ED_Hazard"     0, 0.1 }, 
-         { "T2_kappa"         0, 0.1 }, 
-         { "Start_T1_T2"      0, 0.1 }, 
-         { "Drop_codes",      1, 1.0 },
+         { "T1_ID_Hazard",    0, 0.1 }, 
+         { "T1_ED_Hazard",    0, 0.1 }, 
+         { "T1_sigma",        0, 0.1 }, 
+         { "T2_ID_Hazard",    0, 0.1 }, 
+         { "T2_ED_Hazard",    0, 0.1 }, 
+         { "T2_sigma",        0, 0.1 }, 
+         { "Start_T1_T2",     0, 0.1 }, 
+			{ "Fixation_task",	0, 0.1 },
+         { "Drop_codes",		1, 1.0 },
       { NULL },
 
 		/*
-		**	3 'standard' graphics objects:
+		**	5 'standard' graphics objects:
 		**		0 - fixation
 		**		1 - target #1
       **    2 - target #2
+		**		3 - target #1 generative mean
+      **    4 - target #2 generative mean
 		*/
-		{ "graphics",		NUM_OBJECTS },
+		{ "graphics",		NUM_OBJECTS+2},
          TU_XYRT_LIST,
       	{ DX_DIAM,			0, 0.1 },
          { DX_CLUT,			0, 1.0 },
-         { DX_SHAPE,			0, 1.0 },
       { NULL },
 
 		/* END OF MENUS */
@@ -69,9 +72,10 @@ struct _TAtask_struct gl_adODR_task[] = {
 	},
 
 	/* 
-	** Graphics objects, by name
+	** Graphics objects, by name... add 2 for "mean"
+	**	targets
 	*/
-	{  { DX_TARGET,	NUM_OBJECTS }, 
+	{  { DX_TARGET,	NUM_OBJECTS+2 }, 
 		{ NULL }
 	},
 
@@ -94,12 +98,19 @@ struct _TAtask_struct gl_adODR_task[] = {
 */
 void adODR_make_trials(_PRtask task)
 {
-   int vals[2] = {0,1};
+   int i, vals[2] = {0,1};
 
 	/*
-	** Just add two trial types, one per target
+	** Add two trial types, one per target
 	*/
 	tu_make_trials1D(task, "target", 2, vals, 0.1);
+
+	/* set working copies to a flag that indicates
+	** to set trial that the target theta mean needs
+	**	to be initialized
+	*/
+	for(i=0;i<2;i++)
+		PL_L2PW(task->trials[i]->list,0) = WC_INIT;
 }
 
 /* PUBLIC ROUTINE: adODR_get_trial
@@ -112,33 +123,40 @@ void adODR_make_trials(_PRtask task)
 */
 _PRtrial adODR_get_trial(_PRtask task, int reset_flag)
 {
-valtype val, hazard;
+	valtype hazard;
     
-    /* Check if trialP array exists...
-     * if not, make it with just the two trials and randomly pick one
-     */
-    if(!task->trialPs) {
-       val = TIMV(task,"Start_T1_T2");
+	/* Check if trialP array exists...
+	* if not, make it with just the two trials and randomly pick one
+	*/
+	if(!task->trialPs) {
+
+		/* make trials if they don't exist */
+		pr_task_make_trialP_all(task, 1);
        
-       /* make trials if they don't exist */
-       pr_task_make_trialP_all(task, 1);
-       
-       /* check Task menu for starting target:
-       * 1=T1, 2=T2, otherwise randomize
-       */
-      if(val==1 || val==2)
-         task->trialPs_index = val-1;
-      else
-         task->trialPs_index = TOY_RAND(2);
-    }
+		/* check Task menu for starting target
+		* 	1=T1, 2=T2, otherwise randomize
+		*/
+		switch(TIMV(task, "Start_T1_T2")) {
+			case 1:
+				task->trialPs_index = 0;
+				break;
+			case 2:
+				task->trialPs_index = 1;
+				break;
+			default:	
+				task->trialPs_index = TOY_RAND(2);
+				break;
+		}
+	}
     
-    /* Get & test current target-specific hazard */
-    hazard = task->trialPs_index ? TIMV(task, "T2_ED_Hazard") : TIMV(task, "T1_ED_Hazard");
-    if(hazard>0 && TOY_RCMP(hazard))
-        task->trialPs_index = task->trialPs_index == 0 ? 1 : 0;
+	/* Test current target-specific hazard */
+	hazard = task->trialPs_index ?
+		TIMV(task, "T2_ED_Hazard") : TIMV(task, "T1_ED_Hazard");
+	if(hazard>0 && TOY_RCMP(hazard))
+		task->trialPs_index = task->trialPs_index == 0 ? 1 : 0;
         
     /* return correct trial */
-    return(task->trialPs(task->trialPs_index));
+    return(task->trialPs[task->trialPs_index]);
 }
 
 /* PUBLIC ROUTINE: adODR_set_trial
@@ -149,14 +167,18 @@ void adODR_set_trial(_PRtrial trial)
    _PRtask  task = trial->task;
 	_PLlist  tim  = trial->task->task_menus->lists[0],
             tgm  = trial->task->task_menus->lists[1];
-   valtype  hazard;
-   double   kappa;
+   valtype  hazard, sigma;
    register int i;
+	int		xs[2], ys[2];
+	static 	int mus[2];
    
    /* array of indices of target objects (fp, t1, t2) in
    ** both the graphics menu and dXtargets objects list
    */
-   int ti[] = {0,1,2};
+   int ti[] = {0,1,2}, ti2[]={3,4};
+
+	/* first copy real values into working copies in graphics menu */
+	pl_list_set_v2w(tgm);
 
    /* Need to access and udpdate both trials */
    for(i=0;i<task->trials_length;i++) {
@@ -164,32 +186,45 @@ void adODR_set_trial(_PRtrial trial)
       /* get appropriate variables from menu */
       if(i==0) {
          hazard = TIMV(task, "T1_ID_Hazard");
-         kappa  = TIMV(task, "T1_ID_kappa")/10.0;
+         sigma  = TIMV(task, "T1_sigma");
       } else {
          hazard = TIMV(task, "T2_ID_Hazard");
-         kappa  = TIMV(task, "T2_ID_kappa")/10.0;
+         sigma  = TIMV(task, "T2_sigma");
       }
 
-      /* Store current generative in current trial */
-      if((PL_L2PV(task->trials[i]->list,0)==NULLI) ||
+      /* Possibly get new generative mean and store in 
+		** a local, static variable
+		*/
+      if((PL_L2PW(task->trials[i]->list,0)==WC_INIT) ||
          TOY_RCMP(hazard)) {
-         
-         /* get new generative mean */
-         PL_L2PW(task->trials[i]->list,0) = TOY_RAND(360);
+        	mus[i] = TOY_RAND(360);
+      	PL_L2PW(task->trials[i]->list,0)=mus[i];
       }
       
+		/* Compute x,y location of mean target */
+		xs[i] = TOY_RT_TO_X(0, pl_list_get_vi(tgm,DX_R,i+1), mus[i]);
+		ys[i] = TOY_RT_TO_Y(0, pl_list_get_vi(tgm,DX_R,i+1), mus[i]);
+
       /* Compute actual target location from generative mean
-      ** and variance and store it as theta (the "kT"-th property of 
-      ** the graphics menu) of the appropriate target (the 1st or 2nd
-      ** object)
+      ** and variance and store it as theta (kT) of the appropriate
+      ** appropriate target (the 1st or 2nd object)
       */
-      PL_L2PVS(tgm,kT,i+1) = toy_vonMisesRand(
-         PL_L2PW(task->trials[i]->list,0), kappa);
+      PL_L2PWS(tgm,kT,i+1) = 
+			toy_randCircularNormal(mus[i], sigma/10.0);
+
+		printf("Target %d, mean=%.2d, sigma=%.2f, theta=%.2f, x=%d, y=%d\n",
+			i+1, mus[i], (double) (sigma)/10.0, (double) PL_L2PWS(tgm,kT,i+1),
+			xs[i], ys[i]);
 	}
-         
+  
 	/* compute xys from the working copies of values in the graphics menu */
-	pl_list_set_v2w(tgm);
 	tu_compute_xyrt(tgm);
+
+	/* make working copy Fixation Point CLUT equal to CLUT
+	** of acive target
+	*/
+	pl_list_set_wi(tgm, DX_CLUT, 0, 
+		pl_list_get_vi(tgm, DX_CLUT, PL_L2PV(trial->list,0)+1));
 
 	/* Copy "working copy" values of key target parameters
 	**		to graphics objects and automatically 
@@ -197,17 +232,21 @@ void adODR_set_trial(_PRtrial trial)
 	**
 	**	First dXtargets, all at once ...
 	*/
-	dx_setl_by_nameIV(0, 1, 
+	dx_setl_by_nameIV(0,
 		tgm, 'w',   NUM_OBJECTS, ti, 
 		"dXtarget", NUM_OBJECTS, ti,
 		DX_X,       NULL, 
 		DX_Y,       NULL,
 		DX_DIAM,    NULL,
 		DX_CLUT,    NULL,
-      DX_SHAPE,   NULL,
 		NULL);
-   
-   
+
+	/* update hidden generative mean targets */
+	dx_set_by_nameIV(0, DX_TARGET, 2, ti2,
+		DX_X, xs[0], xs[1], 
+		DX_Y, ys[0], ys[1], 
+		NULL);
+
 	/* Conditionally drop codes ... spm can figure out from the cluts
    * which one is the active target
    */
@@ -230,9 +269,11 @@ void adODR_set_trial(_PRtrial trial)
 #define BASE 7000
 		ec_send_code_tagged(I_T1IDH,   BASE + TIMV(task, "T1_ID_Hazard"));
 		ec_send_code_tagged(I_T1EDH,   BASE + TIMV(task, "T1_ED_Hazard"));
-		ec_send_code_tagged(I_T1KAPPA, BASE + TIMV(task, "T1_kappa"));
+		ec_send_code_tagged(I_T1SIGMA, BASE + TIMV(task, "T1_sigma"));
+		ec_send_code_tagged(I_T1MEANT, BASE + mus[0]);
 		ec_send_code_tagged(I_T2IDH,   BASE + TIMV(task, "T2_ID_Hazard"));
 		ec_send_code_tagged(I_T2EDH,   BASE + TIMV(task, "T2_ED_Hazard"));
-		ec_send_code_tagged(I_T2KAPPA, BASE + TIMV(task, "T2_kappa"));
+		ec_send_code_tagged(I_T2SIGMA, BASE + TIMV(task, "T2_sigma"));
+		ec_send_code_tagged(I_T2MEANT, BASE + mus[1]);
 	}
 }

@@ -37,16 +37,16 @@ extern struct _TAtask_struct gl_mgs_task;
 extern struct _TAtask_struct gl_vgs_task;
 
 struct _TAtasks_struct gl_tasks[] = {
-   { "adaptiveODR",  &gl_adODR_task },
-   { "asl",          &gl_asl_task 	},
-   { "fix",          &gl_fix_task 	},
-   { "ft",           &gl_ft_task 	},
-   { "dots",         &gl_dots_task },
-   { "dotsardt",     &gl_dotsardt_task },
-   { "dotsreg",      &gl_dotsreg_task },
-   { "dotsrt",       &gl_dotsrt_task },
-   { "mgs",          &gl_mgs_task 	},
-   { "vgs",          &gl_vgs_task 	},
+   { "adaptODR", &gl_adODR_task },
+   { "asl",      &gl_asl_task 	},
+   { "fix",      &gl_fix_task 	},
+   { "ft",       &gl_ft_task 	},
+   { "dots",     &gl_dots_task },
+   { "dotsardt", &gl_dotsardt_task },
+   { "dotsreg",  &gl_dotsreg_task },
+   { "dotsrt",   &gl_dotsrt_task },
+   { "mgs",      &gl_mgs_task 	},
+   { "vgs",      &gl_vgs_task 	},
  };
   
 /* PRIVATE MACROS/CONSTANTS */
@@ -74,8 +74,8 @@ struct _TAtasks_struct gl_tasks[] = {
 _PRtask ta_task_by_type(char *type, _PLgroup graphics, USER_FUNC *ufuncs)
 {	
 	register int i;
-	int index=-1, 
-		num_tasks = sizeof(gl_tasks)/sizeof(struct _TAtasks_struct);
+	int index=-1,
+		 num_tasks = sizeof(gl_tasks)/sizeof(struct _TAtasks_struct);
 	_PRtask task;
 
 	for(i=0;i<num_tasks;i++)

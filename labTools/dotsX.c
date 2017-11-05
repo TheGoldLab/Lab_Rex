@@ -1160,8 +1160,9 @@ void dx_set_by_nameIV(dflag flags, char *class_name,
 		prop = pl_list_get_prop(list, property_name);
 
 		/* loop through the inputs, getting and setting */	
-		for(i=0;i<vi_length;i++)
+		for(i=0;i<vi_length;i++) {
 			dx_prop_set(prop, vis[i], va_arg(ap, valtype));
+		}
 	}
 
 	/* end args */
@@ -1627,11 +1628,11 @@ void dx_setl_by_name(_PLlist from, char from_type, char *from_pname,
 **			*_vis are length 1 or NULL
 **
 **	Examples:
-**		dx_setl_by_nameIV(0, 2, 
+**		dx_setl_by_nameIV(0, 
 **			from_list,  'w', 2, &({2 5}),
-**			DX_TARGET, {1 3}, 
-**			"x", "x",
-**			"y", "y",
+**			DX_TARGET, 2, {1 3}, 
+**			"x",
+**			"y",
 **			NULL);
 */
 void dx_setl_by_nameIV(dflag flags, 
@@ -1641,16 +1642,11 @@ void dx_setl_by_nameIV(dflag flags,
 	_PLlist 			to = pl_group_get_list(
 								gl_dx->current_graphic, to_cname);
 	_PLproperty 	prop_to, prop_from;
+	valtype		  *values_from;
 	va_list 	 		ap;
 	char 			  *pfrom_name, *pto_name;
 	register int   i;
 	unsigned int	val_offset;
-
-	/* get value/wc */
-	if(from_type == 'v')
-		val_offset = (unsigned int) ((_PLproperty) NULL)->values;
-	else
-		val_offset = (unsigned int) ((_PLproperty) NULL)->values_wc;
 
 	/* initialize machinery to create rSet command */ 
 	dx_parse_start(to, &to_vi_length, &to_vis);
@@ -1665,16 +1661,24 @@ void dx_setl_by_nameIV(dflag flags,
  	*/
 	while(pfrom_name = va_arg(ap, char *)) {
 
-		/* get the properties to write from, to */
+		/* get the properties to write from, to
+		** jig and kas changed 10/31/17 to fix bug with 	
+		** accessing values_wc
+		*/
 		prop_from = pl_list_get_prop(from, pfrom_name);
+		if(from_type == 'v')
+			values_from = prop_from->values;
+		else
+			values_from = prop_from->values_wc;
 		prop_to   = ((pto_name = va_arg(ap, char *)) != NULL) ?
 						pl_list_get_prop(to, pto_name) :
 						pl_list_get_prop(to, pfrom_name);
 
 		/* loop through the inputs, getting and setting */	
-		for(i=0;i<to_vi_length;i++)
+		for(i=0;i<to_vi_length;i++) {
 			dx_prop_set(prop_to, to_vis[i], 
-				*((valtype *) (prop_from + val_offset + from_vis[i])));
+				*((valtype *) (values_from + from_vis[i])));
+		}
 	}
 
 	/* end args */

@@ -143,10 +143,12 @@
 /* added by jig 10/25/17 for 792 */
 #define I_T1IDH         8072
 #define I_T1EDH         8073
-#define I_T1KAPPA       8074
-#define I_T2IDH         8075
-#define I_T2EDH         8076
-#define I_T2KAPPA       8077
+#define I_T1SIGMA       8074
+#define I_T1MEANT       8075
+#define I_T2IDH         8076
+#define I_T2EDH         8077
+#define I_T2SIGMA       8078
+#define I_T2MEANT       8079
 
 /* special event codes for dot paradigms (lifted from 660.d) */
 #define GORANDCD	4900		/* turn on dots */

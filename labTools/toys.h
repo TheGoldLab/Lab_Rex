@@ -49,6 +49,9 @@
 	/* return comparison of r and random # between 0 and 999 */
 #define TOY_RCMP(rc)			((rc) >= 0 && TOY_RAND(1000.0) < (int) (rc))
 
+/* seed the random number generator */
+#define TOY_SRAND				srand((int) time(NULL))
+
 /* PUBLIC ROUTINE PROTOTYPES */
 
 int 	 toy_atan		(int, int);
@@ -68,6 +71,8 @@ float	 toy_boundf		(float, float, float);
 double  toy_bessi0   (double);
 double  toy_vonMises (double, double, double);
 double *toy_vonMisesA(double *, int, double, double);
+
+double	toy_randCircularNormal(double, double);
 
 double	toy_double(void);
 float		toy_float(void);

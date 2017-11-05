@@ -282,16 +282,18 @@ double *toy_vonMisesA(double *x, int num_x, double mu, double k)
    return(prob);
 }
 
-/* PUBLIC ROUTINE: toy_vonMisesRand
+/* PUBLIC ROUTINE: toy_randCircularNormal
 **
-** Generate a random number from a von Mises distribution
-** 1979 Best-Fisher Algorithm
+** Generate a random number from a circular gaussian
 **
 */
 double toy_randCircularNormal(double mu, double sigma)
 {
    double X,Y,sample;
-   
+ 
+/* get random number on interval (0,1) */ 
+#define RANDV ((rand()+1.0)/(RAND_MAX+2.0))
+
    do {
       X = RANDV;
       Y = RANDV;
@@ -301,7 +303,9 @@ double toy_randCircularNormal(double mu, double sigma)
       X = -X;
 
    sample = X*pow((-2*log(pow(X,2.0)+pow(Y,2.0))/(pow(X,2.0)+pow(Y,2.0))),0.5);
-   sample = fmod(sample * sigma+ mu, 360.0);
+   sample = fmod(sample * sigma + mu, 360.0);
+
+	return(sample);
 }
 
 double toy_double(void)

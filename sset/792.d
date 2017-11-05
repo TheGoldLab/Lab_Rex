@@ -29,7 +29,9 @@ USER_FUNC ufuncs[15];
 #define PRV(n)       pl_list_get_v(gl_rec->prefs_menu, (n))
 
 #define WIND0 0		/* window to compare with eye signal */
-#define WIND3 3		/* dummy window for targets */
+#define WIND1 1		/* window for targets */
+#define WIND2 2		/* window for targets */
+#define WIND3 3		/* window for targets */
 
 #define EYEH_SIG 	0
 #define EYEV_SIG 	1
@@ -54,18 +56,19 @@ USER_FUNC ufuncs[15];
 void autoinit(void)
 {
 
-printf("autoinit start\n");
-
+	/* set up the record */
 	gl_rec = pr_initV(0, 0, 
 		umenus, NULL,
 		rtvars, NULL,
 		ufuncs, 
-		"asl",            1,		
-		"ftt",            1,
-      "adaptiveODR",    2,
+		"asl",        1,		
+		"ft",         1,
+      "adaptODR",   2,
 		NULL);
 
-printf("autoinit end\n");
+	/* seed the random number generator */
+	TOY_SRAND;
+
 }
 
 /* ROUTINE: rinitf
@@ -85,7 +88,12 @@ void rinitf(void)
 		/* do this once */
 		first_time = 0;
 
-		/* initialize interface (window) parameters */
+		/* initialize interface (window) parameters for FOUR windows:
+		** 	WD0 	.. fixation point
+		**		WD1	.. relevant target generative mean
+		**		WD2	.. relevant target most recent location
+		**		WD3 	.. irrelevant target most recent location
+		*/
 		wd_src_check(WIND0, WD_SIGNAL, EYEH_SIG, WD_SIGNAL, EYEV_SIG);
 		wd_src_pos  (WIND0, WD_DIRPOS, 0, WD_DIRPOS, 0);
 		wd_cntrl    (WIND0, WD_ON);
@@ -94,8 +102,16 @@ void rinitf(void)
 		wd_src_pos  (WIND1, WD_DIRPOS, 0, WD_DIRPOS, 0);
 		wd_cntrl    (WIND1, WD_ON);
 
+		wd_src_check(WIND2, WD_SIGNAL, EYEH_SIG, WD_SIGNAL, EYEV_SIG);
+		wd_src_pos  (WIND2, WD_DIRPOS, 0, WD_DIRPOS, 0);
+		wd_cntrl    (WIND2, WD_ON);
+
+		wd_src_check(WIND3, WD_SIGNAL, EYEH_SIG, WD_SIGNAL, EYEV_SIG);
+		wd_src_pos  (WIND3, WD_DIRPOS, 0, WD_DIRPOS, 0);
+		wd_cntrl    (WIND3, WD_ON);
+
 		/* initialize saccade detector */
-		sd_set(1);
+		/* sd_set(1); */
 
 		/* init the screen */
 		pr_setup();
@@ -129,6 +145,49 @@ int finish_trial(void)
 	return(0);
 }
 
+/* ROUTINE: fix_task
+**
+**		Returns 1 if a fixation-only task (FT task)
+*/
+int fix_task(void)
+{
+	return(pr_get_task_menu_value("setup", "Fixation_task", 0) == 1);
+}
+
+/* ROUTINE: position_target_window
+**
+** Check current trial for correct target index, then position
+**		the eye window around it
+**
+*/
+int position_target_windows(long width1, long height1, 
+									 long width2, long height2, 
+									 long width3, long height3)
+{
+	/* if ft task, just put first window over target location, and 
+	** turn off other windows
+	*/
+	if(pr_get_task_index()==1) {
+		dx_position_window(width1, height1, 1, 0, WIND1);
+		dx_position_window(0, 		0, 		1, 0, WIND2);
+		dx_position_window(0, 		0, 		1, 0, WIND3);
+
+	/* Otherwise position:
+	**	WIND1 over generative mean of correct target
+	** WIND2 over actual location of correct target
+	** WIND3 over actual location of inactive target
+	*/
+	} else {
+		int index = pr_get_trial_property("target", 0) + 1;
+
+		dx_position_window(width1, height1, index+2, 0, WIND1);
+		dx_position_window(width2, height2, index,   0, WIND2);
+		dx_position_window(width3, height3, 3-index, 0, WIND3);
+	}
+
+	return(0);
+}
+
 /* ROUTINE: do_calibration
 **
 **	Returns 1 if doing calibration (ASL task)
@@ -146,9 +205,21 @@ int do_calibration(void)
 /* ROUTINE: reward_trial
 **
 */
-int reward_trial(long beep_time)
+int reward_trial(long num_rewards, long reward_on_time, long reward_off_time)
 {
-	pr_set_reward(rew, PRV("Reward_on_time"), PRV("Reward_off_time"), -1, 55, 100);
+
+	/* set the reward parameters */
+	if(reward_on_time < 0)
+		PRV("Reward_on_time");
+	if(reward_off_time < 0)
+		PRV("Reward_off_time");
+
+	pr_set_reward(num_rewards, reward_on_time, reward_off_time, -1, 55, 100);
+
+	/* score as correct trial */	
+	pr_score_trial(kCorrect, 0, 1);
+
+	return(0);
 }
 
 /* THE STATE SET 
@@ -214,7 +285,7 @@ begin	first:
 		to ncerr
 	calacc:
 		do ec_send_code(ACCEPTCAL)
-		to correct
+		to correctfix
 
 	/* Wait for fixation
 	*/
@@ -236,8 +307,6 @@ begin	first:
 	fpwin2:
 		time 20 /* again time to settle window */
 		do dx_position_window(10, 10, 1, 1, 0)
-		to trialstart
-	trialstart:  	
 		to taskjmp
 
 	/* Jump to task-specific statelists
@@ -247,12 +316,9 @@ begin	first:
 		to t1start on 1 % pr_get_task_index
 		to t2start on 2 % pr_get_task_index
 		to t3start on 3 % pr_get_task_index
-		to badtask
-	badtask:
-		do show_error(0)
 		to finish
 
-	/* TASK 0: ASL eye tracker caliberation  */
+	/* TASK 0: ASL eye tracker calibration  */
 	t0start:
 		do dx_show_fp(FPCHG, 0, 5, 5, 1, 1);
 		to t0wait1 on DX_MSG % dx_check
@@ -262,7 +328,7 @@ begin	first:
 	t0winpos:
 		time 20
 		do dx_position_window(20, 20,-1,0,0)
- 		to correctASL
+ 		to correctfix
 	
 	/* Task 1 is ft ... we want to (each condition is optional):
 	**		change fp to standard diameter/color 
@@ -279,127 +345,108 @@ begin	first:
 	**		wait2
 	*/	
 	t1start:
-		do dx_show_fp(FPONCD, 0, 5, 5, 2, 2);
+		do dx_show_fp(FPCHG, 0, 5, 5, 2, 2);
 		to t1wait1 on DX_MSG % dx_check
+		to fixbreak on +WD0_XY & eyeflag
 	t1wait1:
 		do timer_set1(1000, 100, 600, 200, 0, 0)
+		to fixbreak on +WD0_XY & eyeflag
  		to t1ftc1 on MET % timer_check1
 	t1ftc1:
 		do dx_toggle2(TRGC1CD, 0, 0, 1000, NULLI, NULLI);
+		to fixbreak on +WD0_XY & eyeflag
 		to t1wait2 on DX_MSG % dx_check
 	t1wait2:
 		do timer_set1(1000, 100, 600, 200, 0, 0)
+		to fixbreak on +WD0_XY & eyeflag
  		to t1ftc2 on MET % timer_check1
 	t1ftc2:
 		do dx_toggle2(TRGC2CD, 0, 0, 1000, NULLI, NULLI);
+		to fixbreak on +WD0_XY & eyeflag
 		to t1wait3 on DX_MSG % dx_check
 	t1wait3:
 		do timer_set1(1000, 100, 600, 200, 0, 0)
+		to fixbreak on +WD0_XY & eyeflag
  		to t1ftc3 on MET % timer_check1
 	t1ftc3:
 		do dx_toggle2(FPOFFCD, 0, 0, 1000, NULLI, NULLI);
-		to t1winpos on DX_MSG % dx_check
-	t1winpos:
-		time 20
-		do dx_position_window(10,10,-1,0,0)
-		to t1pwait1
-	t1pwait1: 
-		do timer_set1(1000, 100, 600, 200, 0, 0)
- 		to t1pftc1 on MET % timer_check1
-		to t1twinpos on +WD0_XY & eyeflag
-	t1pftc1:
-		do dx_toggle2(TRGC3CD, 0, 0, 1000, NULLI, NULLI);
-		to t1pwait2 on DX_MSG % dx_check
-		to t1twinpos on +WD0_XY & eyeflag
-	t1pwait2:
-		do timer_set1(1000, 100, 600, 200, 0, 0)
- 		to t1fixdone on MET % timer_check1
-		to t1twinpos on +WD0_XY & eyeflag
-	t1fixdone:
-		to correct on 1 % fix_task
-		to error
-	t1twinpos:
-		time 80
-		do dx_position_window(50, 50, 1, 0, 0)
-		to t1tchk
-	t1tchk:
-		to t1thold on -WD0_XY & eyeflag
-		to ncerr
-	t1thold:
-		time 400
-		do ec_send_code(TRGACQUIRECD)
-		to error on +WD0_XY & eyeflag
-     	to error on 1 % fix_task
-		to correct
+		to endtrial on DX_MSG % dx_check
 
 	/* Task 2 is adaptiveODR ... we want to (each condition is optional):
 	**		change fp to standard diameter/color 
-	**		wait1
-	**		change f/t 1
-	**		wait2
-	**		change f/t 2
-	**		wait3
-	**		change f/t 3
-	**		STOP CHECKING FOR FIX BREAKS AND 
-	**			START CHECKING FOR SACCADES
-	**		wait1
-	**		change f/t 1
-	**		wait2
+	**		wait 1
+	**		change targets 1
+	**		wait 2
+	**		change targets 2
+	**		wait 3
+	**		hide fp
+	**		jump to saccade check states
 	*/	
-	t1start:
-		do dx_show_fp(FPONCD, 0, 5, 5, 2, 2);
-		to t1wait1 on DX_MSG % dx_check
-	t1wait1:
+	t2start:
+		do dx_show_fp(FPCHG, 0, 5, 5, 2, 2);
+		to fixbreak on +WD0_XY & eyeflag
+		to t2wait1 on DX_MSG % dx_check
+	t2wait1:
 		do timer_set1(1000, 100, 600, 200, 0, 0)
- 		to t1ftc1 on MET % timer_check1
-	t1ftc1:
-		do dx_toggle2(TRGC1CD, 0, 0, 1000, NULLI, NULLI);
-		to t1wait2 on DX_MSG % dx_check
-	t1wait2:
+		to fixbreak on +WD0_XY & eyeflag
+ 		to t2ftc1 on MET % timer_check1
+	t2ftc1:
+		do dx_toggle2(TRGC1CD, 1, 1, 1000, 2, 1000);
+		to fixbreak on +WD0_XY & eyeflag
+		to t2wait2 on DX_MSG % dx_check
+	t2wait2:
 		do timer_set1(1000, 100, 600, 200, 0, 0)
- 		to t1ftc2 on MET % timer_check1
-	t1ftc2:
-		do dx_toggle2(TRGC2CD, 0, 0, 1000, NULLI, NULLI);
-		to t1wait3 on DX_MSG % dx_check
-	t1wait3:
+		to fixbreak on +WD0_XY & eyeflag
+ 		to t2ftc2 on MET % timer_check1
+	t2ftc2:
+		do dx_toggle2(TRGC2CD, 0, 1, 1000, 2, 1000);
+		to fixbreak on +WD0_XY & eyeflag
+		to t2wait3 on DX_MSG % dx_check
+	t2wait3:
 		do timer_set1(1000, 100, 600, 200, 0, 0)
- 		to t1ftc3 on MET % timer_check1
-	t1ftc3:
+		to fixbreak on +WD0_XY & eyeflag
+ 		to t2ftc3 on MET % timer_check1
+	t2ftc3:
 		do dx_toggle2(FPOFFCD, 0, 0, 1000, NULLI, NULLI);
-		to t1winpos on DX_MSG % dx_check
-	t1winpos:
-		time 20
-		do dx_position_window(10,10,-1,0,0)
-		to t1pwait1
-	t1pwait1: 
-		do timer_set1(1000, 100, 600, 200, 0, 0)
- 		to t1pftc1 on MET % timer_check1
-		to t1twinpos on +WD0_XY & eyeflag
-	t1pftc1:
-		do dx_toggle2(TRGC3CD, 0, 0, 1000, NULLI, NULLI);
-		to t1pwait2 on DX_MSG % dx_check
-		to t1twinpos on +WD0_XY & eyeflag
-	t1pwait2:
-		do timer_set1(1000, 100, 600, 200, 0, 0)
- 		to t1fixdone on MET % timer_check1
-		to t1twinpos on +WD0_XY & eyeflag
-	t1fixdone:
-		to correct on 1 % fix_task
-		to error
-	t1twinpos:
-		time 80
-		do dx_position_window(50, 50, 1, 0, 0)
-		to t1tchk
-	t1tchk:
-		to t1thold on -WD0_XY & eyeflag
-		to ncerr
-	t1thold:
-		time 400
-		do ec_send_code(TRGACQUIRECD)
-		to error on +WD0_XY & eyeflag
-     	to error on 1 % fix_task
-		to correct
+		to endtrial on DX_MSG % dx_check
 
+	/* Task 3 is adaptiveODR ... we want to (each condition is optional):
+	**		change fp to standard diameter/color 
+	**		wait 1
+	**		change targets 1
+	**		wait 2
+	**		change targets 2
+	**		wait 3
+	**		hide fp
+	**		jump to saccade check states
+	*/	
+	t3start:
+		do dx_show_fp(FPCHG, 0, 5, 5, 2, 2);
+		to fixbreak on +WD0_XY & eyeflag
+		to t3wait1 on DX_MSG % dx_check
+	t3wait1:
+		do timer_set1(1000, 100, 600, 200, 0, 0)
+		to fixbreak on +WD0_XY & eyeflag
+ 		to t3ftc1 on MET % timer_check1
+	t3ftc1:
+		do dx_toggle2(TRGC1CD, 1, 1, 1000, 2, 1000);
+		to fixbreak on +WD0_XY & eyeflag
+		to t3wait2 on DX_MSG % dx_check
+	t3wait2:
+		do timer_set1(1000, 100, 600, 200, 0, 0)
+		to fixbreak on +WD0_XY & eyeflag
+ 		to t3ftc2 on MET % timer_check1
+	t3ftc2:
+		do dx_toggle2(TRGC2CD, 0, 1, 1000, 2, 1000);
+		to fixbreak on +WD0_XY & eyeflag
+		to t3wait3 on DX_MSG % dx_check
+	t3wait3:
+		do timer_set1(1000, 100, 600, 200, 0, 0)
+		to fixbreak on +WD0_XY & eyeflag
+ 		to t3ftc3 on MET % timer_check1
+	t3ftc3:
+		do dx_toggle2(FPOFFCD, 0, 0, 1000, NULLI, NULLI);
+		to endtrial on DX_MSG % dx_check
 
 	/* OUTCOME STATES
 	** FIXBREAK
@@ -407,52 +454,79 @@ begin	first:
 	**	ERROR
 	** CORRECT
 	*/
+	endtrial:
+		to correctfix on 1 % fix_task
+		to endwinpos1
+	endwinpos1:
+		time 20
+		do position_target_windows(50,50,50,50,50,50)
+		to grace
 	grace:
 		time 300
-		to sacstrt on +WD0_XY & eyeflag
+		to sacmade on +WD0_XY & eyeflag
 		to ncerr
-	sacstrt:
+	sacmade:
+		time 50
 		ec_send_code_hi(SACMAD);
-		to sacset on +SF_GOOD & sacflags
-		to sacset /* ncerr */
-	sacset:
-		time 20
-		do dx_position_window(30, 30, -1, 0, 0)
-		to sacwait
-	sacwait:
-		time 250
-		to ncerr on +WD0_XY & eyeflag
-		to sacdone
-	sacdone:
-		do made_saccade(100)
-		to fdbkwait
-	fdbkwait:
-		time 300
-		to fdbkgo
-	fdbkgo:
-		to correct on +COR & sactest
-		to error on +ERR & sactest
+		to correctmchk on -WD1_XY & eyeflag
+		to correctrchk on -WD2_XY & eyeflag
+		to errorchk 	on -WD3_XY & eyeflag
 		to ncerr
-	
+
 	/* pref -- reward! */
-	correct:
-		do reward_trial(kCorrect)
+	/* Fixation */
+	correctfix: 
+		do reward_trial(1,-1,-1)
 	   to finish on 0 % pr_beep_reward
+	
+	/* Chose the mean target location */	
+	correctmchk:
+		time 40
+		do dx_position_window(30, 30, -1, 0, WIND1)
+		to correctmwait
+	correctmwait:
+		time 250
+		to ncerr on +WD1_XY & eyeflag	
+		to correctmacq
+	correctmacq:
+		do ec_send_code(TRGACQUIRECD)
+		to correctm
+	correctm:	
+		do reward_trial(2,-1,-1)
+	   to finish on 0 % pr_beep_reward
+
+	correctrchk:
+		time 40
+		do dx_position_window(30, 30, -1, 0, WIND2)
+		to correctrwait
+	correctrwait:
+		time 250
+		to ncerr on +WD2_XY & eyeflag	
+		to correctracq
+	correctracq:
+		do ec_send_code(TRGACQUIRECD)
+		to correctr
+	correctr:	
+		do reward_trial(1,-1,-1)
+	   to finish on 0 % pr_beep_reward
+
+	errorchk:
+		time 40
+		do dx_position_window(30, 30, -1, 0, WIND3)
+		to errorwait
+	errorwait:
+		time 250
+		to ncerr on +WD3_XY & eyeflag	
+		to erroracq
+	erroracq:
+		do ec_send_code(TRGACQUIRECD)
+		to error
 
 	/* error */
 	error:
 		time 3000
 		do pr_score_trial(kError, 0, 1)
 		to finish
-
-	/* ASL loop */
-	correctASL:
-		do pr_score_trial(kCorrect, 0, 1)
-		to rewardASL
-
-	rewardASL:
-	  do pr_set_reward(1, 100, 50, -1, 50, 50)
-	  to finish on 0 % pr_beep_reward   
 
 	/* no choice */
 	ncerr:
@@ -470,10 +544,3 @@ begin	first:
 		do pr_finish_trial()
 		to loop
 }
-
-#/** PhEDIT attribute block
-#-11:16777215
-#0:9341:default:-3:-3:0
-#9341:9345:TextFont9:-3:-3:0
-#9345:14136:default:-3:-3:0
-#**  PhEDIT attribute block ends (-0000170)**/
