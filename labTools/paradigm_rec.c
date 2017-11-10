@@ -2255,11 +2255,8 @@ void pr_task_make_trialP_all(_PRtask task, int num_blocks)
 */
 void pr_task_make_trialP_allR(_PRtask task, int num_blocks)
 {
-	printf("make_trialP_allR: starting %d trials\n", task->trialPs_length);
 	pr_task_make_trialP_all(task, num_blocks);
-	printf("make_trialP_allR: middle %d trials\n", task->trialPs_length);
 	pr_task_randomize_trialP(task);
-	printf("make_trialP_allR: end %d trials\n", task->trialPs_length);
 }
 
 /* PUBLIC ROUTINE: pr_task_make_trialP_row
