@@ -61,9 +61,9 @@ void autoinit(void)
 		umenus, NULL,
 		rtvars, NULL,
 		ufuncs, 
-		"asl",        1,		
-		"ft",         1,
-      "adaptODR",   2,
+		"asl",	1,		
+		"ft",		1,
+      "adODR",	2,
 		NULL);
 
 	/* seed the random number generator */
@@ -318,17 +318,13 @@ begin	first:
 		to t3start on 3 % pr_get_task_index
 		to finish
 
-	/* TASK 0: ASL eye tracker calibration  */
+	/* TASK 0: ASL eye tracker validation  
+	** 	Enters here only if cal0/val1 = 1
+	*/
 	t0start:
-		do dx_show_fp(FPCHG, 0, 5, 5, 1, 1);
-		to t0wait1 on DX_MSG % dx_check
-	t0wait1:
 		do timer_set1(1000, 100, 600, 200, 0, 0)
- 		to t0winpos on MET % timer_check1
-	t0winpos:
-		time 20
-		do dx_position_window(20, 20,-1,0,0)
- 		to correctfix
+ 		to correctfix on MET % timer_check1
+		to fixbreak on +WD0_XY & eyeflag
 	
 	/* Task 1 is ft ... we want to (each condition is optional):
 	**		change fp to standard diameter/color 

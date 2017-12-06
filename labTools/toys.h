@@ -74,9 +74,6 @@ double *toy_vonMisesA(double *, int, double, double);
 
 double	toy_randCircularNormal(double, double);
 
-double	toy_double(void);
-float		toy_float(void);
-
 int toy_rt_to_x(int, int, int);
 int toy_rt_to_y(int, int, int);
 

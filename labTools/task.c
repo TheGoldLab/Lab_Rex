@@ -37,7 +37,7 @@ extern struct _TAtask_struct gl_mgs_task;
 extern struct _TAtask_struct gl_vgs_task;
 
 struct _TAtasks_struct gl_tasks[] = {
-   { "adaptODR", &gl_adODR_task },
+   { "adODR", 	 &gl_adODR_task },
    { "asl",      &gl_asl_task 	},
    { "fix",      &gl_fix_task 	},
    { "ft",       &gl_ft_task 	},

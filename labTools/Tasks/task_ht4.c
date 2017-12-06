@@ -48,9 +48,6 @@ struct _TAtask_struct gl_ht4_task[] = {
       { "ID_H4",			0, 0.1 },
       { "ID_H5",  		0, 0.1 },
       { "ED_H",  			0, 0.1 },
-      { "Block_min", 	0, 0.1 },
-      { "Block_mean",	0, 0.1 },
-      { "Block_max",		0, 0.1 },
       { "Y_max",			1, 0.1 },
       { "NC_repeat",		1, 0.1 },
       { "Drop_codes",	1, 1.0 },
@@ -135,13 +132,11 @@ void ht4_make_trials(_PRtask task)
 _PRtrial ht4_get_trial(_PRtask task, int reset_flag)
 {
    int         hazard_index, target_index, 
-               get_new_hazard=0, get_new_target_set=0, get_new_target=0;
-   static int  block_counter=-1;
+               get_new_hazard=0, get_new_target=0;
 
    /* Check if trialP array exists...
     * if not, make it with just the two trials and randomly pick one
     */
-
    if(!task->trialPs) {
       
       /* make trials if they don't exist */
@@ -150,32 +145,17 @@ _PRtrial ht4_get_trial(_PRtask task, int reset_flag)
       /* radomly pick one to start with */
 		task->trialPs_index = TOY_RAND(task->trialPs_length);
 
-      /* reset the block counter */
-      block_counter = -1;
-      
-   } else if((TIMV(task, "NC_repeat")==1) && 
-		(task->pmf->last_score<0)) {
+   } else if(!((TIMV(task, "NC_repeat")==1) && 
+		(task->pmf->last_score<0))) {
 
-		printf("REPEAT!!!\n");
-
-		/* just do it again if no choice made on previous trial */
-   	return(task->trialPs[task->trialPs_index]);
-
-	} else {
-
-		/* Otherwise check for change points      
+		/* Otherwise if not a repeat trial, 
+		 *		check for change points      
+		 *
        * First test extra-dimensional shift 
 		*/
-      if(TOY_RCMP(TIMV(task, "ED_H"))) {
-         
+      if((task->trials_rows>1) && (TOY_RCMP(TIMV(task, "ED_H")))) {
+
          /* need these, set below */
-         get_new_hazard=1;
-         get_new_target_set=1;
-         get_new_target=1;
-         
-         /* Next test end of block */
-      } else if(block_counter==0) {
-         
          get_new_hazard=1;
          get_new_target=1;
          
@@ -192,7 +172,7 @@ _PRtrial ht4_get_trial(_PRtask task, int reset_flag)
 				floor((double)task->trialPs_index/(double)task->trials_columns);
          target_index = 
 				task->trialPs_index - (hazard_index * (task->trials_columns));
-         
+
          /* maybe get new hazard */
          if(get_new_hazard) {
             int old_hi = hazard_index;
@@ -200,13 +180,10 @@ _PRtrial ht4_get_trial(_PRtask task, int reset_flag)
             /* randomly pick a DIFFERENT hazard */
             if((hazard_index = TOY_RAND(task->trials_rows-1)) == old_hi)
                hazard_index = hazard_index + 1;
-
-            /* reset the block counter */
-            block_counter = -1;
          }
          
          /* now get new trial */
-         if(get_new_target_set) {
+         if(get_new_hazard) {
             target_index = TOY_RAND(2);
          } else {
             target_index = 1-target_index;
@@ -217,15 +194,6 @@ _PRtrial ht4_get_trial(_PRtask task, int reset_flag)
       }
    }
  
-   /* reset the block counter */
-   if(block_counter == -1)
-      block_counter = toy_exp(
-              TIMV(task, "Block_min"),
-              TIMV(task, "Block_max"),
-              TIMV(task, "Block_mean"));
-   else
-      block_counter = block_counter-1;
-   
    /* return current trial */
    return(task->trialPs[task->trialPs_index]);
 }
@@ -243,7 +211,7 @@ void ht4_set_trial(_PRtrial trial)
 	int			hazard_index = floor((double)task->trialPs_index/(double)task->trials_columns),
    				ti[] 		= {0,1,2}; /* indices of target objects */
    register int i;
-   
+  
    /* first copy real values into working copies in graphics menu */
    pl_list_set_v2w(tgm);
 
@@ -252,8 +220,8 @@ void ht4_set_trial(_PRtrial trial)
 	*/
    for(i=0;i<NUM_TARGETS;i++) {
       if((prop_y->values_wc[i+1]==NULLI)) {
-			prop_y->values_wc[i+1] = -y_max +
-				(hazard_index*y_max*2)/(task->trials_rows-1);
+			prop_y->values_wc[i+1] = -y_max + 
+				(hazard_index*y_max*2)/(MAX_HAZARDS-1);
 		}
 	}				
 

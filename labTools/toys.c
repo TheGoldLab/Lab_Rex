@@ -308,19 +308,6 @@ double toy_randCircularNormal(double mu, double sigma)
 	return(sample);
 }
 
-double toy_double(void)
-{
-	return(101.3345);
-}
-float toy_float(void)
-{
-	return(101.3345);
-}
-long toy_long(void)
-{
-	return(1013345);
-}
-
 /* PUBLIC ROUTINE: toy_rt_to_x and toy_rt_to_y
 **  The public macro TOY_RT_TO_X uses cast to int type, producing a bias and residual as much as 0.9999.
 **  For example, TOY_RT_TO_X returns -99 for 180 degree but +100 for 0 degree 
