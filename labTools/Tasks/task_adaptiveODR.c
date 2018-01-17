@@ -71,6 +71,7 @@ struct _TAtask_struct gl_adODR_task[] = {
          TU_XYRT_LIST,
       	{ DX_DIAM,			0, 0.1 },
          { DX_CLUT,			0, 1.0 },
+         { "off color",    0, 1.0 },
          { DX_SHAPE,			0, 1.0 },
       { NULL },
 
@@ -228,10 +229,11 @@ void adODR_set_trial(_PRtrial trial)
 			/* check for min distance */	
 		} while ( PL_L2PWS(tgm,kT,2) >= 0 &&
 			ADIST(PL_L2PWS(tgm,kT,1), PL_L2PWS(tgm,kT,2)) < min_distT);
-
-		printf("Target %d, mean=%.2d, sigma=%.2f, theta=%.2f, x=%d, y=%d\n",
-		i+1, gl_mus[i], (double) (sigma)/10.0, (double) PL_L2PWS(tgm,kT,i+1),
-		xs[i], ys[i]);
+/*
+**		printf("Target %d, mean=%.2d, sigma=%.2f, theta=%.2f, x=%d, y=%d\n",
+**		i+1, gl_mus[i], (double) (sigma)/10.0, (double) PL_L2PWS(tgm,kT,i+1),
+**		xs[i], ys[i]); 
+*/
 	}		 
 		
 	/* compute xys from the working copies of values in the graphics menu */

@@ -196,6 +196,36 @@ int reward_trial(long num_rewards, long reward_on_time, long reward_off_time)
 	return(0);
 }
 
+/* ROUTINE: acquired_target
+**
+** Send target acquired code, possibly change color of correct target
+*/
+int acquired_target(long ecode, long clut_index, long prob)
+{
+
+   /* send target acquired code */
+   ec_send_code_hi(ecode);
+
+   /* Possibly change target color */
+   if(pr_get_task_index()>1 && TOY_RCMP(prob)) {
+
+      /* get index of correct target */
+		int index = pr_get_trial_property("target", 0);
+
+      /* args:
+      ** 1. ecode
+      ** 2. flag: 1=show if prob, else no change
+      ** 3. index of object
+      ** 4. probability of change according to flag
+      ** 5. diameter
+      ** 6. color lookup table index
+      */
+      dx_toggle1(FDBKONCD, 1, index+1, prob, NULLI, clut_index);
+	}
+
+	return(0);
+}
+
 /* THE STATE SET 
 */
 %%
@@ -451,8 +481,11 @@ begin	first:
 		to ncerr on +WD1_XY & eyeflag	
 		to correctacq
 	correctacq:
-		do ec_send_code(TRGACQUIRECD)
-		to corrects
+		do acquired_target(TRGACQUIRECD, 1, 1000)
+		to correctwait on DX_MSG % dx_check
+   correctwait:
+      time 500
+      to corrects
 	corrects:	
 		do reward_trial(2,-1,-1)
 	   to finish on 0 % pr_beep_reward
@@ -463,7 +496,10 @@ begin	first:
 		to ncerr on +WD2_XY & eyeflag	
 		to erroracq
 	erroracq:
-		do ec_send_code(TRGACQUIRECD)
+		do acquired_target(TRGACQUIRECD, 1, 1000)
+		to errorwait on DX_MSG % dx_check
+   errorwait:
+      time 500
 		to errors
 	errors:
 		time 3000
