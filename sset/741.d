@@ -18,7 +18,7 @@
 /* GLOBAL VARIABLES */
 static _PRrecord 	gl_rec=NULL; 	 /* KA-HU-NA */
 static int        gl_twinsize_h=50, gl_twinsize_v=50; /* yeah...  */
-static int			gl_boost_reward=0;
+static int			gl_stim_is_on=0;
 
 	/* for now, allocate these here... */
 MENU 	 	 umenus[30];
@@ -176,37 +176,83 @@ int do_calibration(void)
 	}
 }
 
-/* ROUTINE: reward_trial
+/* ROUTINE: show_stim
+**
+** Conditionally toggle targets and microstimulation
+**
 **
 */
-int reward_trial(long num_rewards, long reward_on_time, long reward_off_time)
+int show_stim(long ecode, long toggle_flag, long prob_show, 
+               long indexA, long indexB, long prob_stim)
 {
+   /* conditionally show/hide target(s) using dx_toggle2
+   ** Note that this syntax is just like calling dx_toggle2 from the
+   **    statelist, EXCEPT that it uses just a single "prob_show" to
+   **    control both targets (or use NULLI for indexA or indexB to
+   **    ignore that target) 
+   */
+	if(prob_show > 0)
+   	dx_toggle2(ecode, toggle_flag, indexA, prob_show, indexB, prob_show);
+	else if(ecode > 0)
+		ec_send_code_hi(ecode);
 
-	/* set the reward parameters */
-	if(reward_on_time < 0)
-		PRV("Reward_on_time");
-	if(reward_off_time < 0)
-		PRV("Reward_off_time");
+   /* conditionaly start/stop microstimulation:
+   **    use prob_stim = (0,1000] to randomly choose to start ustim
+   **    use prob_stim < 0 to end stim
+   */
+   if((prob_stim > 0) &&  (TOY_RAND(1000) < prob_stim)) {
 
-	pr_set_reward(num_rewards, reward_on_time, reward_off_time, -1, 55, 100);
+		/* stim trigger on */
+		PR_DIO_ON("Stim_on_bit");
 
-	/* score as correct trial */	
-	pr_score_trial(kCorrect, 0, 1);
+		/* drop stim on code */
+		ec_send_code(ELESTM);
 
+      /* keep track */
+      gl_stim_is_on = 1;
+
+   } else if ((prob_stim < 0) && (gl_stim_is_on == 1)) {
+
+		/* stim trigger off */
+		PR_DIO_OFF("Stim_on_bit");
+
+		/* drop stim on code */
+		ec_send_code(ELEOFF);
+
+      /* keep track */
+      gl_stim_is_on = 0;
+   }
+	
+	/* done */
 	return(0);
 }
 
-/* ROUTINE: acquired_target
-**
-** Send target acquired code, possibly change color of correct target
-*/
-int acquired_target(long ecode, long clut_index, long prob)
+/* ROUTINE: score_trial */
+int score_trial(long score, long num_rewards, long reward_on_time, 
+   long reward_off_time, long clut_index, long prob)
 {
 
-   /* send target acquired code */
-   ec_send_code_hi(ecode);
+   /* conditionally drop target acquired code */
+   if(score==kCorrect || score==kError)
+		ec_send_code_hi(TRGACQUIRECD);
 
-   /* Possibly change target color */
+	/* set the score, don't reset or blank */	
+	pr_score_trial(score, 0, 0);
+
+	/* conditionally set the reward parameters */
+   if(num_rewards != 0) {
+
+      /* get defaults from preferences menu */
+   	if(reward_on_time < 0)
+   		reward_on_time = PRV("Reward_on_time");
+      if(reward_off_time < 0)
+         reward_off_time = PRV("Reward_off_time");
+
+      /* set the reward */
+   	pr_set_reward(num_rewards, reward_on_time, reward_off_time, -1, 55, 100);
+   }
+
+   /* conditionally change target color */
    if(pr_get_task_index()>1 && TOY_RCMP(prob)) {
 
       /* get index of correct target */
@@ -224,6 +270,30 @@ int acquired_target(long ecode, long clut_index, long prob)
 	}
 
 	return(0);
+}
+
+/* ROUTINE: broken_fixation
+**
+*/
+int broken_fixation(long score, long reset_flag, long clear_flag)
+{
+   /* possibly turn off microstim */
+   if(gl_stim_is_on)
+      show_stim(0, 0, 0, -1, -1, -1);
+
+   /* set the score */
+   pr_score_trial(score, reset_flag, clear_flag);
+}
+	
+/* ROUTINE: blank_screen
+**
+*/
+int blank_screen(void)
+{
+   /* blank the screen */
+   dx_blank(0, pl_list_get_v(gl_rec->ecodes_menu, "All_off_code"));
+
+   return(0);
 }
 
 /* THE STATE SET 
@@ -325,7 +395,7 @@ begin	first:
 	/* TASK 0: ASL eye tracker calibration  */
 	t0start:
 		do timer_set1(1000, 100, 600, 200, 0, 0)
- 		to corrects on MET % timer_check1
+ 		to correctscore on MET % timer_check1
 		to fixbreak on +WD0_XY & eyeflag
 	
 	/* Task 1 is ft ... we want to (each condition is optional):
@@ -343,7 +413,7 @@ begin	first:
 	**		wait2
 	*/	
 	t1start:
-		do dx_show_fp(FPCHG, 0, 5, 5, 2, 2);
+		do dx_show_fp(FPCHG, 0, 5, 5, 2, 2)
 		to t1wait1 on DX_MSG % dx_check
 		to fixbreak on +WD0_XY & eyeflag
 	t1wait1:
@@ -351,7 +421,7 @@ begin	first:
 		to fixbreak on +WD0_XY & eyeflag
  		to t1ftc1 on MET % timer_check1
 	t1ftc1:
-		do dx_toggle2(TRGC1CD, 0, 0, 1000, NULLI, NULLI);
+		do dx_toggle2(TRGC1CD, 0, 0, 1000, NULLI, NULLI)
 		to fixbreak on +WD0_XY & eyeflag
 		to t1wait2 on DX_MSG % dx_check
 	t1wait2:
@@ -359,7 +429,7 @@ begin	first:
 		to fixbreak on +WD0_XY & eyeflag
  		to t1ftc2 on MET % timer_check1
 	t1ftc2:
-		do dx_toggle2(TRGC2CD, 0, 0, 1000, NULLI, NULLI);
+		do dx_toggle2(TRGC2CD, 0, 0, 1000, NULLI, NULLI)
 		to fixbreak on +WD0_XY & eyeflag
 		to t1wait3 on DX_MSG % dx_check
 	t1wait3:
@@ -367,7 +437,7 @@ begin	first:
 		to fixbreak on +WD0_XY & eyeflag
  		to t1ftc3 on MET % timer_check1
 	t1ftc3:
-		do dx_toggle2(FPOFFCD, 0, 0, 1000, NULLI, NULLI);
+		do dx_toggle2(FPOFFCD, 0, 0, 1000, NULLI, NULLI)
 		to endtrial on DX_MSG % dx_check
 
 	/* Task 2 is ht4 ... we want to (each condition is optional):
@@ -381,7 +451,7 @@ begin	first:
 	**		jump to saccade check states
 	*/	
 	t2start:
-		do dx_show_fp(FPCHG, 0, 5, 5, 2, 2);
+		do dx_show_fp(FPCHG, 0, 5, 5, 2, 2)
 		to fixbreak on +WD0_XY & eyeflag
 		to t2wait1 on DX_MSG % dx_check
 	t2wait1:
@@ -389,7 +459,7 @@ begin	first:
 		to fixbreak on +WD0_XY & eyeflag
  		to t2ftc1 on MET % timer_check1
 	t2ftc1:
-		do dx_toggle2(TRGC1CD, 1, 1, 1000, 2, 1000);
+      do show_stim(TRGC1CD, 1, 1000, 1, 2, 0)
 		to fixbreak on +WD0_XY & eyeflag
 		to t2wait2 on DX_MSG % dx_check
 	t2wait2:
@@ -397,7 +467,7 @@ begin	first:
 		to fixbreak on +WD0_XY & eyeflag
  		to t2ftc2 on MET % timer_check1
 	t2ftc2:
-		do dx_toggle2(TRGC2CD, 0, 1, 1000, 2, 1000);
+      do show_stim(TRGC2CD, 0, 0, 1, 2, 0)
 		to fixbreak on +WD0_XY & eyeflag
 		to t2wait3 on DX_MSG % dx_check
 	t2wait3:
@@ -405,7 +475,7 @@ begin	first:
 		to fixbreak on +WD0_XY & eyeflag
  		to t2ftc3 on MET % timer_check1
 	t2ftc3:
-		do dx_toggle2(FPOFFCD, 0, 0, 1000, NULLI, NULLI);
+      do show_stim(FPOFFCD, 0, 1000, 0, NULLI, -1)
 		to endtrial on DX_MSG % dx_check
 
 	/* Task 3 is ht4 ... we want to (each condition is optional):
@@ -419,7 +489,7 @@ begin	first:
 	**		jump to saccade check states
 	*/	
 	t3start:
-		do dx_show_fp(FPCHG, 0, 5, 5, 2, 2);
+		do dx_show_fp(FPCHG, 0, 5, 5, 2, 2)
 		to fixbreak on +WD0_XY & eyeflag
 		to t3wait1 on DX_MSG % dx_check
 	t3wait1:
@@ -427,7 +497,7 @@ begin	first:
 		to fixbreak on +WD0_XY & eyeflag
  		to t3ftc1 on MET % timer_check1
 	t3ftc1:
-		do dx_toggle2(TRGC1CD, 1, 1, 1000, 2, 1000);
+      do show_stim(TRGC1CD, 1, 1000, 1, 2, 0)
 		to fixbreak on +WD0_XY & eyeflag
 		to t3wait2 on DX_MSG % dx_check
 	t3wait2:
@@ -435,7 +505,7 @@ begin	first:
 		to fixbreak on +WD0_XY & eyeflag
  		to t3ftc2 on MET % timer_check1
 	t3ftc2:
-		do dx_toggle2(TRGC2CD, 0, 1, 1000, 2, 1000);
+      do show_stim(TRGC2CD, 0, 0, 1, 2, 0)
 		to fixbreak on +WD0_XY & eyeflag
 		to t3wait3 on DX_MSG % dx_check
 	t3wait3:
@@ -443,7 +513,7 @@ begin	first:
 		to fixbreak on +WD0_XY & eyeflag
  		to t3ftc3 on MET % timer_check1
 	t3ftc3:
-		do dx_toggle2(FPOFFCD, 0, 0, 1000, NULLI, NULLI);
+      do show_stim(FPOFFCD, 0, 1000, 0, NULLI, -1)
 		to endtrial on DX_MSG % dx_check
 
 	/* OUTCOME STATES
@@ -465,59 +535,61 @@ begin	first:
 		to ncerr
 	sacmade:
 		time 50
-		ec_send_code_hi(SACMAD);
+		do show_stim(SACMAD, 0, 0, NULLI, NULLI, 0);
+		to saccheck
+	saccheck:
+		do show_stim(0, 0, 0, NULLI, NULLI, 0);
 		to correct on -WD1_XY & eyeflag
 		to error   on -WD2_XY & eyeflag
 		to ncerr
 
 	/* correct fixation */
 	correctfix: 
-		do reward_trial(1,-1,-1)
+		do score_trial(kCorrect,2,-1,-1,1,0)
 	   to finish on 0 % pr_beep_reward
 	
 	/* saccade to correct target */	
 	correct:
 		time 250
 		to ncerr on +WD1_XY & eyeflag	
-		to correctacq
-	correctacq:
-		do acquired_target(TRGACQUIRECD, 1, 1000)
-		to correctwait on DX_MSG % dx_check
+      to correctscore
+	correctscore:	
+		do score_trial(kCorrect,2,-1,-1,1,1000)
+      to correctrew on DX_MSG % dx_check
+   correctrew:
+	   to correctwait on 0 % pr_beep_reward
    correctwait:
-      time 500
-      to corrects
-	corrects:	
-		do reward_trial(2,-1,-1)
-	   to finish on 0 % pr_beep_reward
+      time 100
+      to blank
 
 	/* saccade to error target */
 	error:
 		time 250
-		to ncerr on +WD2_XY & eyeflag	
-		to erroracq
-	erroracq:
-		do acquired_target(TRGACQUIRECD, 1, 1000)
-		to errorwait on DX_MSG % dx_check
+		to ncerr on +WD2_XY & eyeflag
+      to errorscore
+	errorscore:	
+		do score_trial(kError,0,-1,-1,1,1000)
+      to errorwait on DX_MSG % dx_check
    errorwait:
-      time 500
-		to errors
-	errors:
-		time 3000
-		do pr_score_trial(kError, 0, 1)
-		to finish
+      time 100
+      to blank
 
 	/* no choice */
 	ncerr:
 		time 3000
-		do pr_score_trial(kNC, 0, 1)
+		do broken_fixation(kNC, 0, 1)
 		to finish
 
 	/* fixation break */
 	fixbreak:
 		time 2500
-		do pr_score_trial(kBrFix, 0, 1)
+		do broken_fixation(kBrFix, 0, 1)
 		to finish
 
+   /* possibly blank screen and done! */
+   blank:
+      do blank_screen()
+      to finish
 	finish:
 		do pr_finish_trial()
 		to loop
