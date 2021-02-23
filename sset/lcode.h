@@ -150,6 +150,13 @@
 #define I_T2SIGMA       8078
 #define I_T2MEANT       8079
 
+/* added by KAS 08/09/18 for 794 */
+#define I_TRG3XCD         8080
+#define I_TRG3YCD       8081
+#define I_TRG3LCD       8082
+
+
+
 /* special event codes for dot paradigms (lifted from 660.d) */
 #define GORANDCD	4900		/* turn on dots */
 #define GOCOHCD 	4901		/* turn on coherence */
@@ -301,6 +308,10 @@
 #define DIRCHG7 3112
 #define DIRCHG8 3113
 #define DIRCHG9 3114
+
+/* Ring graphic on and feedback off for paradigm 794 added KAS 8-13-18*/
+#define RINGON 3115
+#define FDBKOFFCD 3116
 
 
 /* OLD CODES 
